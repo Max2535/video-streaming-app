@@ -1,3 +1,7 @@
+# This is a sample .gitignore file for a Node.js project
+videos/
+thumbnails/
+
 # Node modules
 node_modules/
 
