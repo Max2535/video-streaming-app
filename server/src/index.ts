@@ -3,6 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { scanVideos } from './utils/scanVideos';
+import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
 
 const app = express();
 const PORT = 4000;
@@ -49,6 +50,45 @@ app.get('/video/:filename', (req, res) => {
 
   res.writeHead(206, headers);
   fs.createReadStream(videoPath, { start, end }).pipe(res);
+});
+
+app.get('/stream/:filename', (req, res) => {
+  const decodedPath = decodeURIComponent(req.params.filename);
+  const videoPath = path.join(VIDEO_DIR, decodedPath);
+
+  // Example ffmpeg command to stream video as mp4
+  const ffmpeg: ChildProcessWithoutNullStreams = spawn('ffmpeg', [
+    '-i', videoPath,
+    '-f', 'mp4',
+    '-movflags', 'frag_keyframe+empty_moov',
+    '-vcodec', 'libx264',
+    '-an',
+    'pipe:1'
+  ]);
+
+  res.setHeader('Content-Type', 'video/mp4');
+
+  ffmpeg.stdout.pipe(res);
+
+  req.on('close', () => {
+    ffmpeg.kill('SIGKILL');
+  });
+
+  ffmpeg.stderr.on('data', (data) => {
+    console.error(`ffmpeg stderr: ${data}`);
+  });
+
+  ffmpeg.on('error', (err) => {
+    console.error('Failed to start ffmpeg:', err);
+    res.sendStatus(500);
+  });
+
+  ffmpeg.on('close', (code) => {
+    if (!res.writableEnded) {
+      res.end();
+    }
+    console.log(`ffmpeg process closed with code ${code}`);
+  });
 });
 
 app.listen(PORT, () => {
