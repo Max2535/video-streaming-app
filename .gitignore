@@ -1,6 +1,7 @@
 # This is a sample .gitignore file for a Node.js project
 videos/
 thumbnails/
+hls_output/
 
 # Node modules
 node_modules/
